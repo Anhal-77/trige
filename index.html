@@ -5,48 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>نظام تصنيف حالات طوارئ الأسنان</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
-<body>
-    <div id="root"></div>
+<body class="bg-gray-50">
+    <div id="app"></div>
 
-    <script type="text/babel">
-        const { useState } = React;
-
-        // أيقونات بسيطة بدلاً من Lucide
-        const Icon = ({ name, className = "w-5 h-5" }) => {
-            const icons = {
-                user: "👤",
-                file: "📄",
-                alert: "⚠️",
-                check: "✓",
-                clock: "⏰",
-                send: "✉️",
-                eye: "👁️",
-                arrowRight: "←",
-                arrowLeft: "→",
-                logout: "🚪"
-            };
-            return <span className={className}>{icons[name] || ""}</span>;
-        };
-
-        const DentalEmergencyTriage = () => {
-            const [view, setView] = useState('patient');
-            const [step, setStep] = useState('personal');
-            const [cases, setCases] = useState([]);
-            const [selectedCase, setSelectedCase] = useState(null);
-            const [doctorNote, setDoctorNote] = useState('');
-            const [prescriptionNumber, setPrescriptionNumber] = useState('');
-            const [currentCaseId, setCurrentCaseId] = useState(null);
-            
-            const [isLoggedIn, setIsLoggedIn] = useState(false);
-            const [loginUsername, setLoginUsername] = useState('');
-            const [loginPassword, setLoginPassword] = useState('');
-            const [loginError, setLoginError] = useState('');
-            
-            const [formData, setFormData] = useState({
+    <script>
+        // State Management
+        let state = {
+            view: 'patient',
+            step: 'personal',
+            cases: [],
+            selectedCase: null,
+            currentCaseId: null,
+            isLoggedIn: false,
+            loginError: '',
+            formData: {
                 nationalId: '',
                 fullName: '',
                 age: '',
@@ -64,4 +37,347 @@
                 swellingType: '',
                 hasFever: null,
                 affectsSwallowing: null,
-                hardAndPainful: nul
+                hardAndPainful: null,
+                withPain: null,
+                hasRedSpot: null,
+                hasSensitivity: null,
+                hasContinuousPain: null,
+                healthConditions: []
+            },
+            result: null,
+            doctorNote: '',
+            prescriptionNumber: ''
+        };
+
+        const DOCTOR_CREDENTIALS = {
+            username: 'doctor',
+            password: 'dental2024'
+        };
+
+        function updateState(newState) {
+            state = { ...state, ...newState };
+            render();
+        }
+
+        function updateFormData(field, value) {
+            state.formData[field] = value;
+            render();
+        }
+
+        function toggleArrayValue(field, value) {
+            if (state.formData[field].includes(value)) {
+                state.formData[field] = state.formData[field].filter(v => v !== value);
+            } else {
+                state.formData[field].push(value);
+            }
+            render();
+        }
+
+        function classifyCase() {
+            let urgent = false;
+            let classification = '';
+            let message = '';
+
+            // فحص الأعراض الطارئة
+            if (state.formData.emergencySymptoms.length > 0 && 
+                !state.formData.emergencySymptoms.includes('none')) {
+                urgent = true;
+                classification = 'طارئة جداً: تتطلب رعاية طبية عاجلة';
+                message = 'يجب التوجه فوراً لطوارئ المستشفى العام';
+                return { urgent, classification, message, type: 'emergency' };
+            }
+
+            // فحص الألم
+            if (state.formData.mainProblem === 'pain') {
+                if (state.formData.painSeverity === 'severe' && 
+                    state.formData.painkillerEffective === false && 
+                    state.formData.wakesFromSleep === true) {
+                    urgent = true;
+                    classification = 'حالة طارئة: ألم شديد';
+                } else if (state.formData.painSeverity === 'severe') {
+                    urgent = true;
+                    classification = 'حالة مستعجلة: ألم يحتاج تدخل سريع';
+                } else {
+                    classification = 'حالة عادية: متابعة روتينية';
+                }
+            } 
+            // فحص التورم
+            else if (state.formData.mainProblem === 'swelling') {
+                if (state.formData.hasFever === true || 
+                    state.formData.affectsSwallowing === true || 
+                    state.formData.hardAndPainful === true) {
+                    urgent = true;
+                    classification = 'حالة طارئة: التهاب شديد';
+                } else {
+                    classification = 'حالة مستعجلة: يحتاج متابعة قريبة';
+                }
+            } 
+            // فحص الكسر
+            else if (state.formData.mainProblem === 'fracture') {
+                if (state.formData.hasRedSpot || state.formData.hasSensitivity || state.formData.hasContinuousPain) {
+                    urgent = true;
+                    classification = 'حالة طارئة: كسر خطير يحتاج تدخل فوري';
+                } else {
+                    classification = 'حالة عادية: للمراجعة';
+                }
+            } 
+            // فحص سقوط الحشوة
+            else if (state.formData.mainProblem === 'filling') {
+                if (state.formData.withPain === true) {
+                    if (state.formData.painSeverity === 'severe') {
+                        urgent = true;
+                        classification = 'حالة مستعجلة: سقوط حشوة مع ألم شديد';
+                    } else {
+                        classification = 'حالة عادية: سقوط حشوة مع ألم';
+                    }
+                } else {
+                    classification = 'حالة عادية: للمراجعة';
+                    message = 'سيتم مراجعة حالتك والرد عليك بأسرع وقت';
+                }
+            } 
+            // أخرى
+            else if (state.formData.mainProblem === 'other') {
+                classification = 'تحتاج لمراجعة يدوية';
+                message = 'سيتم مراجعة حالتك من قبل الطبيب';
+            }
+
+            return { urgent, classification, message, type: urgent ? 'urgent' : 'normal' };
+        }
+
+        function handleSubmit() {
+            const result = classifyCase();
+            const newCase = {
+                id: Date.now(),
+                ...state.formData,
+                submittedAt: new Date().toLocaleString('ar-SA'),
+                doctorNote: '',
+                prescriptionNumber: '',
+                status: 'pending'
+            };
+            state.cases.push(newCase);
+            updateState({ 
+                result, 
+                currentCaseId: newCase.id,
+                step: 'result' 
+            });
+        }
+
+        function sendDoctorResponse() {
+            const note = document.getElementById('doctorNoteInput').value;
+            const prescription = document.getElementById('prescriptionInput').value;
+            
+            if (!note || !prescription) {
+                alert('الرجاء ملء جميع الحقول');
+                return;
+            }
+            
+            state.cases = state.cases.map(c => 
+                c.id === state.selectedCase.id 
+                    ? { ...c, doctorNote: note, prescriptionNumber: prescription, status: 'reviewed' }
+                    : c
+            );
+            
+            alert('تم إرسال الملاحظات ورقم الوصفة للمريض بنجاح');
+            updateState({ 
+                selectedCase: null,
+                doctorNote: '',
+                prescriptionNumber: ''
+            });
+        }
+
+        function handleLogin(e) {
+            e.preventDefault();
+            const username = document.getElementById('loginUsername').value;
+            const password = document.getElementById('loginPassword').value;
+            
+            if (username === DOCTOR_CREDENTIALS.username && password === DOCTOR_CREDENTIALS.password) {
+                updateState({ isLoggedIn: true, loginError: '' });
+            } else {
+                updateState({ loginError: 'اسم المستخدم أو كلمة المرور غير صحيحة' });
+            }
+        }
+
+        function handleLogout() {
+            updateState({ isLoggedIn: false, view: 'patient' });
+        }
+
+        // Render Functions
+        function renderHeader() {
+            return `
+                <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+                    <div class="bg-blue-600 p-6 text-white">
+                        <h1 class="text-3xl font-bold text-center">نظام تصنيف حالات طوارئ الأسنان</h1>
+                        <p class="text-center text-blue-100 mt-2">تقييم سريع وفعال للحالات الطارئة</p>
+                    </div>
+                    <div class="flex border-b-2 border-gray-200">
+                        <button onclick="switchView('patient')" class="flex-1 py-4 font-bold transition-all ${
+                            state.view === 'patient' 
+                                ? 'bg-blue-50 text-blue-700 border-b-4 border-blue-600' 
+                                : 'text-gray-600 hover:bg-gray-50'
+                        }">
+                            واجهة المريض
+                        </button>
+                        <button onclick="switchView('doctor')" class="flex-1 py-4 font-bold transition-all ${
+                            state.view === 'doctor' 
+                                ? 'bg-green-50 text-green-700 border-b-4 border-green-600' 
+                                : 'text-gray-600 hover:bg-gray-50'
+                        }">
+                            واجهة الطبيب
+                        </button>
+                    </div>
+                    <div class="p-8">
+            `;
+        }
+
+        function renderFooter() {
+            return `
+                    </div>
+                </div>
+                <div class="text-center text-sm text-gray-600 mt-6 bg-white rounded-lg p-4">
+                    <p class="font-bold">© 2024 نظام تصنيف حالات طوارئ الأسنان</p>
+                    <p class="mt-1">للطوارئ الشديدة اتصل فوراً بالرقم 997</p>
+                </div>
+            `;
+        }
+
+        function renderPersonalInfo() {
+            return renderHeader() + `
+                <h2 class="text-2xl font-bold text-gray-900 mb-6">المعلومات الشخصية</h2>
+                
+                <div class="space-y-5">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">رقم الهوية</label>
+                        <input type="text" id="nationalId" value="${state.formData.nationalId}" 
+                            onchange="updateFormData('nationalId', this.value)"
+                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="أدخل رقم الهوية">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">الاسم الثلاثي</label>
+                        <input type="text" id="fullName" value="${state.formData.fullName}"
+                            onchange="updateFormData('fullName', this.value)"
+                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="أدخل الاسم الكامل">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">العمر</label>
+                        <input type="number" id="age" value="${state.formData.age}"
+                            onchange="updateFormData('age', this.value)"
+                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="أدخل العمر">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">رقم الجوال</label>
+                        <input type="tel" id="phone" value="${state.formData.phone}"
+                            onchange="updateFormData('phone', this.value)"
+                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="05xxxxxxxx">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-3">الجنس</label>
+                        <div class="grid grid-cols-2 gap-4">
+                            <button onclick="setGender('male')" class="py-3 rounded-lg border-2 font-semibold transition-all ${
+                                state.formData.gender === 'male' 
+                                    ? 'bg-blue-600 text-white border-blue-600' 
+                                    : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400'
+                            }">
+                                ذكر
+                            </button>
+                            <button onclick="setGender('female')" class="py-3 rounded-lg border-2 font-semibold transition-all ${
+                                state.formData.gender === 'female' 
+                                    ? 'bg-pink-600 text-white border-pink-600' 
+                                    : 'bg-white text-gray-700 border-gray-300 hover:border-pink-400'
+                            }">
+                                أنثى
+                            </button>
+                        </div>
+                    </div>
+                    
+                    ${state.formData.gender === 'female' ? `
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-3">هل أنتِ حامل؟</label>
+                        <div class="grid grid-cols-2 gap-4">
+                            <button onclick="setPregnant(true)" class="py-3 rounded-lg border-2 font-semibold transition-all ${
+                                state.formData.isPregnant === true 
+                                    ? 'bg-green-600 text-white border-green-600' 
+                                    : 'bg-white text-gray-700 border-gray-300 hover:border-green-400'
+                            }">
+                                نعم
+                            </button>
+                            <button onclick="setPregnant(false)" class="py-3 rounded-lg border-2 font-semibold transition-all ${
+                                state.formData.isPregnant === false 
+                                    ? 'bg-gray-600 text-white border-gray-600' 
+                                    : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
+                            }">
+                                لا
+                            </button>
+                        </div>
+                    </div>
+                    ` : ''}
+                    
+                    <button onclick="nextToEmergency()" 
+                        class="w-full mt-6 bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition-all font-semibold">
+                        التالي →
+                    </button>
+                </div>
+            ` + renderFooter();
+        }
+
+        function renderEmergencySymptoms() {
+            return renderHeader() + `
+                <h2 class="text-2xl font-bold text-gray-900 mb-4">الأعراض الطارئة</h2>
+                
+                <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg mb-6">
+                    <p class="text-red-800 font-semibold">هل تعاني من أياً من هذه الأعراض الآن؟</p>
+                </div>
+
+                <div class="space-y-3">
+                    <button onclick="toggleEmergencySymptom('breathing')" class="w-full p-4 rounded-lg border-2 text-right transition-all font-semibold ${
+                        state.formData.emergencySymptoms.includes('breathing') 
+                            ? 'bg-red-600 text-white border-red-600' 
+                            : 'bg-white text-gray-700 border-gray-300 hover:border-red-400'
+                    }">
+                        صعوبة شديدة ومفاجئة في التنفس والبلع
+                    </button>
+                    <button onclick="toggleEmergencySymptom('bleeding')" class="w-full p-4 rounded-lg border-2 text-right transition-all font-semibold ${
+                        state.formData.emergencySymptoms.includes('bleeding') 
+                            ? 'bg-red-600 text-white border-red-600' 
+                            : 'bg-white text-gray-700 border-gray-300 hover:border-red-400'
+                    }">
+                        نزيف لا يتوقف
+                    </button>
+                    <button onclick="toggleEmergencySymptom('swelling')" class="w-full p-4 rounded-lg border-2 text-right transition-all font-semibold ${
+                        state.formData.emergencySymptoms.includes('swelling') 
+                            ? 'bg-red-600 text-white border-red-600' 
+                            : 'bg-white text-gray-700 border-gray-300 hover:border-red-400'
+                    }">
+                        تورم كبير ينتشر بسرعة إلى الرقبة أو أسفل العين
+                    </button>
+                    <button onclick="toggleEmergencySymptom('none')" class="w-full p-4 rounded-lg border-2 text-right transition-all font-semibold ${
+                        state.formData.emergencySymptoms.includes('none') 
+                            ? 'bg-green-600 text-white border-green-600' 
+                            : 'bg-white text-gray-700 border-gray-300 hover:border-green-400'
+                    }">
+                        لا أخرى
+                    </button>
+                </div>
+
+                <div class="flex gap-3 mt-6">
+                    <button onclick="goBack('personal')" 
+                        class="flex-1 bg-gray-600 text-white py-3 rounded-lg hover:bg-gray-700 transition-all font-semibold">
+                        ← رجوع
+                    </button>
+                    <button onclick="nextFromEmergency()" 
+                        class="flex-1 bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition-all font-semibold">
+                        التالي →
+                    </button>
+                </div>
+            ` + renderFooter();
+        }
+
+        function renderMainProblem() {
+            return renderHeader() + `
