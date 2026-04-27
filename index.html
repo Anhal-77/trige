@@ -10,7 +10,10 @@
     <div id="app"></div>
 
     <script>
-        // State Management
+        // تأكد من تحميل الصفحة
+        console.log('الموقع يعمل!');
+
+        // State
         let state = {
             view: 'patient',
             step: 'personal',
@@ -18,7 +21,6 @@
             selectedCase: null,
             currentCaseId: null,
             isLoggedIn: false,
-            loginError: '',
             formData: {
                 nationalId: '',
                 fullName: '',
@@ -46,7 +48,8 @@
             },
             result: null,
             doctorNote: '',
-            prescriptionNumber: ''
+            prescriptionNumber: '',
+            loginError: ''
         };
 
         const DOCTOR_CREDENTIALS = {
@@ -54,98 +57,883 @@
             password: 'dental2024'
         };
 
-        function updateState(newState) {
-            state = { ...state, ...newState };
+        // Helper Functions
+        function updateState(updates) {
+            state = { ...state, ...updates };
             render();
         }
 
         function updateFormData(field, value) {
-            state.formData[field] = value;
+            state.formData = { ...state.formData, [field]: value };
             render();
         }
 
-        function toggleArrayValue(field, value) {
-            if (state.formData[field].includes(value)) {
-                state.formData[field] = state.formData[field].filter(v => v !== value);
+        // Render Main
+        function render() {
+            const app = document.getElementById('app');
+            if (!app) {
+                console.error('العنصر app غير موجود!');
+                return;
+            }
+
+            let content = '';
+
+            // Header
+            content += `
+                <div class="max-w-4xl mx-auto py-8 px-4">
+                    <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+                        <div class="bg-blue-600 p-6 text-white">
+                            <h1 class="text-3xl font-bold text-center">نظام تصنيف حالات طوارئ الأسنان</h1>
+                            <p class="text-center text-blue-100 mt-2">تقييم سريع وفعال للحالات الطارئة</p>
+                        </div>
+                        
+                        <div class="flex border-b-2 border-gray-200">
+                            <button onclick="switchView('patient')" class="flex-1 py-4 font-bold ${state.view === 'patient' ? 'bg-blue-50 text-blue-700 border-b-4 border-blue-600' : 'text-gray-600 hover:bg-gray-50'}">
+                                واجهة المريض
+                            </button>
+                            <button onclick="switchView('doctor')" class="flex-1 py-4 font-bold ${state.view === 'doctor' ? 'bg-green-50 text-green-700 border-b-4 border-green-600' : 'text-gray-600 hover:bg-gray-50'}">
+                                واجهة الطبيب
+                            </button>
+                        </div>
+                        
+                        <div class="p-8">
+            `;
+
+            // Content based on view and step
+            if (state.view === 'patient') {
+                if (state.step === 'personal') {
+                    content += renderPersonalInfo();
+                } else if (state.step === 'emergency') {
+                    content += renderEmergency();
+                } else if (state.step === 'mainProblem') {
+                    content += renderMainProblem();
+                } else if (state.step === 'painLocation') {
+                    content += renderPainLocation();
+                } else if (state.step === 'painDetails') {
+                    content += renderPainDetails();
+                } else if (state.step === 'swellingDetails') {
+                    content += renderSwellingDetails();
+                } else if (state.step === 'fractureDetails') {
+                    content += renderFractureDetails();
+                } else if (state.step === 'fractureWithPain') {
+                    content += renderFractureWithPain();
+                } else if (state.step === 'fillingDetails') {
+                    content += renderFillingDetails();
+                } else if (state.step === 'fillingPainDetails') {
+                    content += renderFillingPainDetails();
+                } else if (state.step === 'healthConditions') {
+                    content += renderHealthConditions();
+                } else if (state.step === 'result') {
+                    content += renderResult();
+                }
             } else {
-                state.formData[field].push(value);
+                content += renderDoctorView();
+            }
+
+            // Footer
+            content += `
+                        </div>
+                    </div>
+                    <div class="text-center text-sm text-gray-600 mt-6 bg-white rounded-lg p-4">
+                        <p class="font-bold">© 2024 نظام تصنيف حالات طوارئ الأسنان</p>
+                        <p class="mt-1">للطوارئ الشديدة اتصل فوراً بالرقم 997</p>
+                    </div>
+                </div>
+            `;
+
+            app.innerHTML = content;
+        }
+
+        // Render Functions
+        function renderPersonalInfo() {
+            return `
+                <h2 class="text-2xl font-bold text-gray-900 mb-6">المعلومات الشخصية</h2>
+                <div class="space-y-5">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">رقم الهوية</label>
+                        <input type="text" id="nationalId" value="${state.formData.nationalId}"
+                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            placeholder="أدخل رقم الهوية">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">الاسم الثلاثي</label>
+                        <input type="text" id="fullName" value="${state.formData.fullName}"
+                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            placeholder="أدخل الاسم الكامل">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">العمر</label>
+                        <input type="number" id="age" value="${state.formData.age}"
+                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            placeholder="أدخل العمر">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">رقم الجوال</label>
+                        <input type="tel" id="phone" value="${state.formData.phone}"
+                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            placeholder="05xxxxxxxx">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-3">الجنس</label>
+                        <div class="grid grid-cols-2 gap-4">
+                            <button onclick="setGender('male')" class="py-3 rounded-lg border-2 font-semibold ${state.formData.gender === 'male' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 border-gray-300'}">
+                                ذكر
+                            </button>
+                            <button onclick="setGender('female')" class="py-3 rounded-lg border-2 font-semibold ${state.formData.gender === 'female' ? 'bg-pink-600 text-white' : 'bg-white text-gray-700 border-gray-300'}">
+                                أنثى
+                            </button>
+                        </div>
+                    </div>
+                    ${state.formData.gender === 'female' ? `
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-3">هل أنتِ حامل؟</label>
+                        <div class="grid grid-cols-2 gap-4">
+                            <button onclick="setPregnant(true)" class="py-3 rounded-lg border-2 font-semibold ${state.formData.isPregnant === true ? 'bg-green-600 text-white' : 'bg-white text-gray-700 border-gray-300'}">
+                                نعم
+                            </button>
+                            <button onclick="setPregnant(false)" class="py-3 rounded-lg border-2 font-semibold ${state.formData.isPregnant === false ? 'bg-gray-600 text-white' : 'bg-white text-gray-700 border-gray-300'}">
+                                لا
+                            </button>
+                        </div>
+                    </div>
+                    ` : ''}
+                    <button onclick="nextToEmergency()" class="w-full mt-6 bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 font-semibold">
+                        التالي →
+                    </button>
+                </div>
+            `;
+        }
+
+        function renderEmergency() {
+            return `
+                <h2 class="text-2xl font-bold text-gray-900 mb-4">الأعراض الطارئة</h2>
+                <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg mb-6">
+                    <p class="text-red-800 font-semibold">هل تعاني من أياً من هذه الأعراض الآن؟</p>
+                </div>
+                <div class="space-y-3">
+                    ${renderButton('breathing', 'صعوبة شديدة ومفاجئة في التنفس والبلع', 'emergency')}
+                    ${renderButton('bleeding', 'نزيف لا يتوقف', 'emergency')}
+                    ${renderButton('swelling', 'تورم كبير ينتشر بسرعة إلى الرقبة أو أسفل العين', 'emergency')}
+                    ${renderButton('none', 'لا أخرى', 'emergency', true)}
+                </div>
+                <div class="flex gap-3 mt-6">
+                    <button onclick="goBack('personal')" class="flex-1 bg-gray-600 text-white py-3 rounded-lg hover:bg-gray-700 font-semibold">
+                        ← رجوع
+                    </button>
+                    <button onclick="nextFromEmergency()" class="flex-1 bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 font-semibold">
+                        التالي →
+                    </button>
+                </div>
+            `;
+        }
+
+        function renderButton(value, label, type, isNone = false) {
+            const isSelected = state.formData.emergencySymptoms.includes(value);
+            const colorClass = isNone 
+                ? (isSelected ? 'bg-green-600 text-white' : 'bg-white text-gray-700 border-gray-300')
+                : (isSelected ? 'bg-red-600 text-white' : 'bg-white text-gray-700 border-gray-300');
+            
+            return `
+                <button onclick="toggleEmergency('${value}')" 
+                    class="w-full p-4 rounded-lg border-2 text-right font-semibold ${colorClass}">
+                    ${label}
+                </button>
+            `;
+        }
+
+        function renderMainProblem() {
+            const problems = [
+                {value: 'pain', label: 'ألم شديد', color: 'red'},
+                {value: 'swelling', label: 'تورم/خراج', color: 'orange'},
+                {value: 'fracture', label: 'كسر بالأسنان', color: 'yellow'},
+                {value: 'filling', label: 'سقوط حشوة أو تركيبة', color: 'blue'},
+                {value: 'other', label: 'أخرى', color: 'gray'}
+            ];
+
+            let html = `
+                <h2 class="text-2xl font-bold text-gray-900 mb-4">المشكلة الرئيسية</h2>
+                <p class="text-gray-700 font-semibold mb-4 bg-blue-50 p-3 rounded-lg">ما هي المشكلة الرئيسية التي تعاني منها؟</p>
+                <div class="space-y-3">
+            `;
+
+            problems.forEach(p => {
+                const isSelected = state.formData.mainProblem === p.value;
+                html += `
+                    <button onclick="setMainProblem('${p.value}')" 
+                        class="w-full p-4 rounded-lg border-2 text-right font-semibold ${isSelected ? `bg-${p.color}-600 text-white` : 'bg-white text-gray-700 border-gray-300'}">
+                        ${p.label}
+                    </button>
+                `;
+            });
+
+            html += `</div>`;
+
+            if (state.formData.mainProblem === 'other') {
+                html += `
+                    <textarea id="otherDesc" placeholder="صف المشكلة بالتفصيل" maxlength="500"
+                        class="w-full mt-4 px-4 py-3 border border-gray-300 rounded-lg" rows="4">${state.formData.otherProblemDescription}</textarea>
+                `;
+            }
+
+            html += `
+                <div class="flex gap-3 mt-6">
+                    <button onclick="goBack('emergency')" class="flex-1 bg-gray-600 text-white py-3 rounded-lg hover:bg-gray-700 font-semibold">
+                        ← رجوع
+                    </button>
+                    <button onclick="nextFromMainProblem()" class="flex-1 bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 font-semibold">
+                        التالي →
+                    </button>
+                </div>
+            `;
+
+            return html;
+        }
+
+        function renderPainLocation() {
+            return `
+                <h2 class="text-2xl font-bold text-gray-900 mb-4">موقع الألم</h2>
+                <div class="bg-gray-50 p-5 rounded-lg">
+                    <p class="text-gray-800 mb-4 font-semibold">هل يمكنك تحديد مكان الألم بوضوح؟</p>
+                    <div class="space-y-3">
+                        <button onclick="setPainLocation('specific')" class="w-full p-4 rounded-lg border-2 text-right font-semibold ${state.formData.painLocation === 'specific' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700'}">
+                            نعم، سن محدد
+                        </button>
+                        <button onclick="setPainLocation('general')" class="w-full p-4 rounded-lg border-2 text-right font-semibold ${state.formData.painLocation === 'general' ? 'bg-orange-600 text-white' : 'bg-white text-gray-700'}">
+                            لا، ألم عام في الفك أو الوجه
+                        </button>
+                        <button onclick="setPainLocation('spreading')" class="w-full p-4 rounded-lg border-2 text-right font-semibold ${state.formData.painLocation === 'spreading' ? 'bg-red-600 text-white' : 'bg-white text-gray-700'}">
+                            ألم ينتشر من سن إلى الرأس/الأذن
+                        </button>
+                    </div>
+                </div>
+                ${state.formData.painLocation === 'specific' ? `
+                <div class="mt-4">
+                    <label class="block font-semibold mb-2">صف مكان السن بالتفصيل:</label>
+                    <textarea id="painLocationDesc" placeholder="مثال: السن الأخير في الجهة اليمنى العلوية" maxlength="300"
+                        class="w-full px-4 py-3 border border-gray-300 rounded-lg" rows="3">${state.formData.painLocationDescription}</textarea>
+                </div>
+                ` : ''}
+                <div class="flex gap-3 mt-6">
+                    <button onclick="goBack('mainProblem')" class="flex-1 bg-gray-600 text-white py-3 rounded-lg font-semibold">← رجوع</button>
+                    <button onclick="nextFromPainLocation()" class="flex-1 bg-blue-600 text-white py-3 rounded-lg font-semibold">التالي →</button>
+                </div>
+            `;
+        }
+
+        function renderPainDetails() {
+            return `
+                <h2 class="text-2xl font-bold mb-4">تفاصيل الألم</h2>
+                <div class="space-y-6">
+                    <div class="bg-gray-50 p-5 rounded-lg">
+                        <p class="font-semibold mb-4">مدى شدة الألم؟</p>
+                        <div class="space-y-2">
+                            <button onclick="setPainSeverity('mild')" class="w-full p-3 rounded-lg border-2 font-semibold ${state.formData.painSeverity === 'mild' ? 'bg-yellow-600 text-white' : 'bg-white text-gray-700'}">خفيف</button>
+                            <button onclick="setPainSeverity('moderate')" class="w-full p-3 rounded-lg border-2 font-semibold ${state.formData.painSeverity === 'moderate' ? 'bg-orange-600 text-white' : 'bg-white text-gray-700'}">متوسط</button>
+                            <button onclick="setPainSeverity('severe')" class="w-full p-3 rounded-lg border-2 font-semibold ${state.formData.painSeverity === 'severe' ? 'bg-red-600 text-white' : 'bg-white text-gray-700'}">شديد</button>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 p-5 rounded-lg">
+                        <p class="font-semibold mb-4">هل المسكنات العادية تخفف الألم؟</p>
+                        <div class="grid grid-cols-2 gap-4">
+                            <button onclick="setPainkillerEffective(true)" class="p-3 rounded-lg border-2 font-semibold ${state.formData.painkillerEffective === true ? 'bg-green-600 text-white' : 'bg-white'}">نعم</button>
+                            <button onclick="setPainkillerEffective(false)" class="p-3 rounded-lg border-2 font-semibold ${state.formData.painkillerEffective === false ? 'bg-red-600 text-white' : 'bg-white'}">لا</button>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 p-5 rounded-lg">
+                        <p class="font-semibold mb-4">هل الألم يوقظك من النوم؟</p>
+                        <div class="grid grid-cols-2 gap-4">
+                            <button onclick="setWakesFromSleep(true)" class="p-3 rounded-lg border-2 font-semibold ${state.formData.wakesFromSleep === true ? 'bg-red-600 text-white' : 'bg-white'}">نعم</button>
+                            <button onclick="setWakesFromSleep(false)" class="p-3 rounded-lg border-2 font-semibold ${state.formData.wakesFromSleep === false ? 'bg-green-600 text-white' : 'bg-white'}">لا</button>
+                        </div>
+                    </div>
+                    <div class="flex gap-3">
+                        <button onclick="goBack('painLocation')" class="flex-1 bg-gray-600 text-white py-3 rounded-lg font-semibold">← رجوع</button>
+                        <button onclick="goToHealth()" class="flex-1 bg-blue-600 text-white py-3 rounded-lg font-semibold">التالي →</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderSwellingDetails() {
+            return `
+                <h2 class="text-2xl font-bold mb-4">تفاصيل التورم/الخراج</h2>
+                <div class="space-y-6">
+                    <div class="bg-gray-50 p-5 rounded-lg">
+                        <p class="font-semibold mb-4">هل التورم صلب أم طري يمكن الضغط عليه؟</p>
+                        <div class="grid grid-cols-2 gap-4">
+                            <button onclick="setSwellingType('hard')" class="p-4 rounded-lg border-2 font-semibold ${state.formData.swellingType === 'hard' ? 'bg-red-600 text-white' : 'bg-white'}">صلب</button>
+                            <button onclick="setSwellingType('soft')" class="p-4 rounded-lg border-2 font-semibold ${state.formData.swellingType === 'soft' ? 'bg-yellow-600 text-white' : 'bg-white'}">طري</button>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 p-5 rounded-lg">
+                        <p class="font-semibold mb-4">هل لديك ارتفاع في درجة الحرارة (حمى)؟</p>
+                        <div class="grid grid-cols-2 gap-4">
+                            <button onclick="setHasFever(true)" class="p-3 rounded-lg border-2 font-semibold ${state.formData.hasFever === true ? 'bg-red-600 text-white' : 'bg-white'}">نعم</button>
+                            <button onclick="setHasFever(false)" class="p-3 rounded-lg border-2 font-semibold ${state.formData.hasFever === false ? 'bg-green-600 text-white' : 'bg-white'}">لا</button>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 p-5 rounded-lg">
+                        <p class="font-semibold mb-4">هل التورم يؤثر على فتح فمك أو البلع؟</p>
+                        <div class="grid grid-cols-2 gap-4">
+                            <button onclick="setAffectsSwallowing(true)" class="p-3 rounded-lg border-2 font-semibold ${state.formData.affectsSwallowing === true ? 'bg-red-600 text-white' : 'bg-white'}">نعم</button>
+                            <button onclick="setAffectsSwallowing(false)" class="p-3 rounded-lg border-2 font-semibold ${state.formData.affectsSwallowing === false ? 'bg-green-600 text-white' : 'bg-white'}">لا</button>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 p-5 rounded-lg">
+                        <p class="font-semibold mb-4">هل الانتفاخ مؤلم جداً عند اللمس؟</p>
+                        <div class="grid grid-cols-2 gap-4">
+                            <button onclick="setHardAndPainful(true)" class="p-3 rounded-lg border-2 font-semibold ${state.formData.hardAndPainful === true ? 'bg-red-600 text-white' : 'bg-white'}">نعم</button>
+                            <button onclick="setHardAndPainful(false)" class="p-3 rounded-lg border-2 font-semibold ${state.formData.hardAndPainful === false ? 'bg-green-600 text-white' : 'bg-white'}">لا</button>
+                        </div>
+                    </div>
+                    <div class="flex gap-3">
+                        <button onclick="goBack('mainProblem')" class="flex-1 bg-gray-600 text-white py-3 rounded-lg font-semibold">← رجوع</button>
+                        <button onclick="goToHealth()" class="flex-1 bg-blue-600 text-white py-3 rounded-lg font-semibold">التالي →</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderFractureDetails() {
+            return `
+                <h2 class="text-2xl font-bold mb-4">تفاصيل الكسر</h2>
+                <div class="space-y-6">
+                    <div class="bg-gray-50 p-5 rounded-lg">
+                        <p class="font-semibold mb-4">هل تشاهد بقعة حمراء أو دموية صغيرة في الكسر؟</p>
+                        <div class="grid grid-cols-2 gap-4">
+                            <button onclick="setHasRedSpot(true)" class="p-3 rounded-lg border-2 font-semibold ${state.formData.hasRedSpot === true ? 'bg-red-600 text-white' : 'bg-white'}">نعم</button>
+                            <button onclick="setHasRedSpot(false)" class="p-3 rounded-lg border-2 font-semibold ${state.formData.hasRedSpot === false ? 'bg-green-600 text-white' : 'bg-white'}">لا</button>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 p-5 rounded-lg">
+                        <p class="font-semibold mb-4">هل الكسر يسبب حساسية فورية ومؤلمة جداً عند تعرضه للهواء أو الماء؟</p>
+                        <div class="grid grid-cols-2 gap-4">
+                            <button onclick="setHasSensitivity(true)" class="p-3 rounded-lg border-2 font-semibold ${state.formData.hasSensitivity === true ? 'bg-red-600 text-white' : 'bg-white'}">نعم</button>
+                            <button onclick="setHasSensitivity(false)" class="p-3 rounded-lg border-2 font-semibold ${state.formData.hasSensitivity === false ? 'bg-green-600 text-white' : 'bg-white'}">لا</button>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 p-5 rounded-lg">
+                        <p class="font-semibold mb-4">هل الكسر مصحوب بألم مستمر شديد (حتى بدون لمس)؟</p>
+                        <div class="grid grid-cols-2 gap-4">
+                            <button onclick="setHasContinuousPain(true)" class="p-3 rounded-lg border-2 font-semibold ${state.formData.hasContinuousPain === true ? 'bg-red-600 text-white' : 'bg-white'}">نعم</button>
+                            <button onclick="setHasContinuousPain(false)" class="p-3 rounded-lg border-2 font-semibold ${state.formData.hasContinuousPain === false ? 'bg-green-600 text-white' : 'bg-white'}">لا</button>
+                        </div>
+                    </div>
+                    <div class="flex gap-3">
+                        <button onclick="goBack('mainProblem')" class="flex-1 bg-gray-600 text-white py-3 rounded-lg font-semibold">← رجوع</button>
+                        <button onclick="goToHealth()" class="flex-1 bg-blue-600 text-white py-3 rounded-lg font-semibold">التالي →</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderFractureWithPain() {
+            return renderFractureDetails();
+        }
+
+        function renderFillingDetails() {
+            return `
+                <h2 class="text-2xl font-bold mb-4">سقوط الحشوة/التركيبة</h2>
+                <div class="bg-gray-50 p-5 rounded-lg">
+                    <p class="font-semibold mb-4">هل هذا مصحوب بألم أو بدون ألم؟</p>
+                    <div class="grid grid-cols-2 gap-4">
+                        <button onclick="setWithPain(true)" class="p-4 rounded-lg border-2 font-semibold ${state.formData.withPain === true ? 'bg-red-600 text-white' : 'bg-white'}">مع ألم</button>
+                        <button onclick="setWithPain(false)" class="p-4 rounded-lg border-2 font-semibold ${state.formData.withPain === false ? 'bg-green-600 text-white' : 'bg-white'}">بدون ألم</button>
+                    </div>
+                </div>
+                <button onclick="goBack('mainProblem')" class="w-full mt-6 bg-gray-600 text-white py-3 rounded-lg font-semibold">← رجوع</button>
+            `;
+        }
+
+        function renderFillingPainDetails() {
+            return renderPainDetails();
+        }
+
+        function renderHealthConditions() {
+            const conditions = [
+                {value: 'allergy', label: 'حساسية من المضادات الحيوية (مثل البنسلين، الأموكسيسيلين، إلخ)'},
+                {value: 'chronic', label: 'مشاكل صحية مزمنة (سكري، ضغط، قلب، إلخ)'},
+                {value: 'bloodThinner', label: 'أتناول أدوية مسيلة للدم (أسبرين، وارفارين، إلخ)'},
+                {value: 'none', label: 'لا يوجد'}
+            ];
+
+            let html = `
+                <h2 class="text-2xl font-bold mb-4">الحالات الصحية الإضافية</h2>
+                <p class="bg-blue-50 p-3 rounded-lg font-semibold mb-3">هل لديك أي من هذه الحالات التالية؟</p>
+                <p class="text-sm text-gray-600 mb-4 bg-yellow-50 p-2 rounded">يمكن اختيار أكثر من خيار</p>
+                <div class="space-y-3">
+            `;
+
+            conditions.forEach(c => {
+                const isSelected = state.formData.healthConditions.includes(c.value);
+                const colorClass = c.value === 'none' 
+                    ? (isSelected ? 'bg-green-600 text-white' : 'bg-white text-gray-700 border-gray-300')
+                    : (isSelected ? 'bg-red-600 text-white' : 'bg-white text-gray-700 border-gray-300');
+                
+                html += `
+                    <button onclick="toggleHealth('${c.value}')" class="w-full p-4 rounded-lg border-2 text-right font-semibold ${colorClass}">
+                        ${c.label}
+                    </button>
+                `;
+            });
+
+            html += `
+                </div>
+                <div class="flex gap-3 mt-6">
+                    <button onclick="goBackFromHealth()" class="flex-1 bg-gray-600 text-white py-3 rounded-lg font-semibold">← رجوع</button>
+                    <button onclick="submitForm()" class="flex-1 bg-green-600 text-white py-3 rounded-lg font-semibold">إرسال وتقييم الحالة</button>
+                </div>
+            `;
+
+            return html;
+        }
+
+        function renderResult() {
+            const currentCase = state.cases.find(c => c.id === state.currentCaseId);
+            const isReviewed = currentCase && currentCase.status === 'reviewed';
+
+            let html = '';
+            
+            if (state.result.type === 'emergency') {
+                html = `
+                    <div class="p-6 rounded-lg border-l-4 border-red-600 bg-red-50">
+                        <h2 class="text-2xl font-bold mb-3 text-red-800">⚠️ تحذير طارئ</h2>
+                        <div class="bg-white p-4 rounded-lg mb-3">
+                            <p class="font-semibold text-lg">${state.result.classification}</p>
+                        </div>
+                        ${state.result.message ? `
+                        <div class="p-4 rounded-lg bg-red-100">
+                            <p class="font-semibold text-red-800">${state.result.message}</p>
+                        </div>
+                        ` : ''}
+                    </div>
+                `;
+            } else {
+                html = `
+                    <div class="p-6 rounded-lg border-l-4 border-blue-600 bg-blue-50">
+                        <h2 class="text-2xl font-bold mb-3 text-blue-800">
+                            ${isReviewed ? '✓ تمت المراجعة' : '⏰ قيد المراجعة'}
+                        </h2>
+                        <div class="bg-white p-4 rounded-lg mb-3">
+                            <p class="font-semibold">
+                                ${isReviewed ? 'تم مراجعة حالتك من قبل الطبيب' : 'سيتم مراجعة حالتك من قبل الطبيب وإرسال الرد قريباً'}
+                            </p>
+                        </div>
+                        ${isReviewed && currentCase && currentCase.doctorNote ? `
+                        <div class="bg-green-50 p-5 rounded-lg border-l-4 border-green-600">
+                            <p class="text-sm text-green-700 font-semibold mb-2">ملاحظات الطبيب:</p>
+                            <p class="text-green-900 font-semibold mb-3">${currentCase.doctorNote}</p>
+                            ${currentCase.prescriptionNumber ? `
+                            <div class="bg-white p-3 rounded-lg">
+                                <p class="text-green-900 font-bold">رقم الوصفة: ${currentCase.prescriptionNumber}</p>
+                            </div>
+                            ` : ''}
+                        </div>
+                        ` : ''}
+                    </div>
+                `;
+            }
+
+            html += `
+                <button onclick="newCase()" class="w-full mt-6 bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 font-semibold">
+                    حالة جديدة
+                </button>
+            `;
+
+            return html;
+        }
+
+        function renderDoctorView() {
+            if (!state.isLoggedIn) {
+                return `
+                    <div class="max-w-md mx-auto">
+                        <div class="bg-white rounded-lg shadow-lg p-8 border border-gray-200">
+                            <div class="text-center mb-6">
+                                <div class="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <span class="text-4xl">👨‍⚕️</span>
+                                </div>
+                                <h2 class="text-2xl font-bold">تسجيل دخول الطبيب</h2>
+                                <p class="text-gray-600 mt-2">أدخل بيانات الدخول للوصول إلى لوحة التحكم</p>
+                            </div>
+                            <form onsubmit="handleLogin(event)" class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-semibold mb-2">اسم المستخدم</label>
+                                    <input type="text" id="loginUsername" required
+                                        class="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                                        placeholder="doctor">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-semibold mb-2">كلمة المرور</label>
+                                    <input type="password" id="loginPassword" required
+                                        class="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                                        placeholder="dental2024">
+                                </div>
+                                ${state.loginError ? `
+                                <div class="bg-red-50 border-l-4 border-red-500 p-3 rounded">
+                                    <p class="text-red-700 text-sm font-semibold">${state.loginError}</p>
+                                </div>
+                                ` : ''}
+                                <button type="submit" class="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 font-semibold">
+                                    تسجيل الدخول
+                                </button>
+                            </form>
+                            <div class="mt-6 p-4 bg-gray-50 rounded-lg">
+                                <p class="text-xs text-center text-gray-600">
+                                    <span class="font-semibold">للتجربة:</span><br/>
+                                    اسم المستخدم: doctor<br/>
+                                    كلمة المرور: dental2024
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            let html = `
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold">قائمة المرضى</h2>
+                    <div class="flex items-center gap-3">
+                        <div class="bg-blue-100 px-4 py-2 rounded-lg">
+                            <p class="text-blue-800 font-semibold">عدد الحالات: ${state.cases.length}</p>
+                        </div>
+                        <button onclick="handleLogout()" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 font-semibold">
+                            تسجيل الخروج
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            if (state.cases.length === 0) {
+                html += `
+                    <div class="text-center py-12 bg-gray-50 rounded-lg">
+                        <p class="text-6xl mb-4">📄</p>
+                        <p class="text-gray-600 text-lg">لا توجد حالات حالياً</p>
+                    </div>
+                `;
+            } else {
+                state.cases.forEach(c => {
+                    html += `
+                        <div class="bg-white border rounded-lg p-5 mb-4 hover:shadow-lg transition-shadow">
+                            <div class="flex justify-between items-start mb-4">
+                                <div>
+                                    <h3 class="text-xl font-bold">${c.fullName}</h3>
+                                    <p class="text-sm text-gray-600">الهوية: ${c.nationalId} | العمر: ${c.age} | الجوال: ${c.phone}</p>
+                                </div>
+                                <span class="px-3 py-1 rounded-full text-sm font-semibold ${c.status === 'reviewed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">
+                                    ${c.status === 'reviewed' ? 'تمت المراجعة' : 'قيد المراجعة'}
+                                </span>
+                            </div>
+                            ${c.doctorNote ? `
+                            <div class="bg-blue-50 p-3 rounded mb-3">
+                                <p class="font-semibold text-blue-700">ملاحظات: ${c.doctorNote}</p>
+                                ${c.prescriptionNumber ? `<p class="text-blue-600">رقم الوصفة: ${c.prescriptionNumber}</p>` : ''}
+                            </div>
+                            ` : ''}
+                            <button onclick="viewCase(${c.id})" class="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 font-semibold">
+                                عرض التفاصيل
+                            </button>
+                        </div>
+                    `;
+                });
+            }
+
+            if (state.selectedCase) {
+                html += `
+                    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onclick="closeCase()">
+                        <div class="bg-white rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
+                            <h3 class="text-2xl font-bold mb-4">تفاصيل الحالة</h3>
+                            <div class="space-y-4 mb-6">
+                                <div class="bg-gray-50 p-4 rounded">
+                                    <p><b>الاسم:</b> ${state.selectedCase.fullName}</p>
+                                    <p><b>المشكلة:</b> ${getProblemLabel(state.selectedCase.mainProblem)}</p>
+                                </div>
+                            </div>
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block font-semibold mb-2">ملاحظات الطبيب:</label>
+                                    <textarea id="doctorNoteInput" rows="5" placeholder="أدخل ملاحظاتك..."
+                                        class="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500">${state.doctorNote}</textarea>
+                                </div>
+                                <div>
+                                    <label class="block font-semibold mb-2">رقم الوصفة:</label>
+                                    <input type="text" id="prescriptionInput" value="${state.prescriptionNumber}" placeholder="RX-123"
+                                        class="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                                </div>
+                                <div class="grid grid-cols-2 gap-4">
+                                    <button onclick="closeCase()" class="bg-gray-500 text-white py-3 rounded-lg hover:bg-gray-600 font-semibold">
+                                        إلغاء
+                                    </button>
+                                    <button onclick="sendDoctorResponse()" class="bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 font-semibold">
+                                        ✉️ إرسال للمريض
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            return html;
+        }
+
+        function getProblemLabel(problem) {
+            const labels = {
+                pain: 'ألم شديد',
+                swelling: 'تورم/خراج',
+                fracture: 'كسر بالأسنان',
+                filling: 'سقوط حشوة',
+                other: 'أخرى'
+            };
+            return labels[problem] || problem;
+        }
+
+        // Event Handlers
+        function switchView(view) {
+            updateState({ view });
+        }
+
+        function setGender(gender) {
+            updateFormData('gender', gender);
+        }
+
+        function setPregnant(value) {
+            updateFormData('isPregnant', value);
+        }
+
+        function nextToEmergency() {
+            const id = document.getElementById('nationalId').value;
+            const name = document.getElementById('fullName').value;
+            const age = document.getElementById('age').value;
+            const phone = document.getElementById('phone').value;
+            
+            if (id && name && age && phone && state.formData.gender) {
+                state.formData.nationalId = id;
+                state.formData.fullName = name;
+                state.formData.age = age;
+                state.formData.phone = phone;
+                updateState({ step: 'emergency' });
+            } else {
+                alert('الرجاء ملء جميع الحقول');
+            }
+        }
+
+        function toggleEmergency(value) {
+            if (value === 'none') {
+                state.formData.emergencySymptoms = ['none'];
+            } else {
+                if (state.formData.emergencySymptoms.includes('none')) {
+                    state.formData.emergencySymptoms = [value];
+                } else if (state.formData.emergencySymptoms.includes(value)) {
+                    state.formData.emergencySymptoms = state.formData.emergencySymptoms.filter(s => s !== value);
+                } else {
+                    state.formData.emergencySymptoms.push(value);
+                }
             }
             render();
         }
 
-        function classifyCase() {
-            let urgent = false;
-            let classification = '';
-            let message = '';
-
-            // فحص الأعراض الطارئة
-            if (state.formData.emergencySymptoms.length > 0 && 
-                !state.formData.emergencySymptoms.includes('none')) {
-                urgent = true;
-                classification = 'طارئة جداً: تتطلب رعاية طبية عاجلة';
-                message = 'يجب التوجه فوراً لطوارئ المستشفى العام';
-                return { urgent, classification, message, type: 'emergency' };
+        function nextFromEmergency() {
+            if (state.formData.emergencySymptoms.length === 0) {
+                alert('الرجاء اختيار أحد الخيارات');
+                return;
             }
-
-            // فحص الألم
-            if (state.formData.mainProblem === 'pain') {
-                if (state.formData.painSeverity === 'severe' && 
-                    state.formData.painkillerEffective === false && 
-                    state.formData.wakesFromSleep === true) {
-                    urgent = true;
-                    classification = 'حالة طارئة: ألم شديد';
-                } else if (state.formData.painSeverity === 'severe') {
-                    urgent = true;
-                    classification = 'حالة مستعجلة: ألم يحتاج تدخل سريع';
-                } else {
-                    classification = 'حالة عادية: متابعة روتينية';
-                }
-            } 
-            // فحص التورم
-            else if (state.formData.mainProblem === 'swelling') {
-                if (state.formData.hasFever === true || 
-                    state.formData.affectsSwallowing === true || 
-                    state.formData.hardAndPainful === true) {
-                    urgent = true;
-                    classification = 'حالة طارئة: التهاب شديد';
-                } else {
-                    classification = 'حالة مستعجلة: يحتاج متابعة قريبة';
-                }
-            } 
-            // فحص الكسر
-            else if (state.formData.mainProblem === 'fracture') {
-                if (state.formData.hasRedSpot || state.formData.hasSensitivity || state.formData.hasContinuousPain) {
-                    urgent = true;
-                    classification = 'حالة طارئة: كسر خطير يحتاج تدخل فوري';
-                } else {
-                    classification = 'حالة عادية: للمراجعة';
-                }
-            } 
-            // فحص سقوط الحشوة
-            else if (state.formData.mainProblem === 'filling') {
-                if (state.formData.withPain === true) {
-                    if (state.formData.painSeverity === 'severe') {
-                        urgent = true;
-                        classification = 'حالة مستعجلة: سقوط حشوة مع ألم شديد';
-                    } else {
-                        classification = 'حالة عادية: سقوط حشوة مع ألم';
-                    }
-                } else {
-                    classification = 'حالة عادية: للمراجعة';
-                    message = 'سيتم مراجعة حالتك والرد عليك بأسرع وقت';
-                }
-            } 
-            // أخرى
-            else if (state.formData.mainProblem === 'other') {
-                classification = 'تحتاج لمراجعة يدوية';
-                message = 'سيتم مراجعة حالتك من قبل الطبيب';
+            
+            if (state.formData.emergencySymptoms.includes('none')) {
+                updateState({ step: 'mainProblem' });
+            } else {
+                // حالة طارئة
+                state.result = {
+                    type: 'emergency',
+                    classification: 'طارئة جداً: تتطلب رعاية طبية عاجلة',
+                    message: 'يجب التوجه فوراً لطوارئ المستشفى العام'
+                };
+                const newCase = {
+                    id: Date.now(),
+                    ...state.formData,
+                    submittedAt: new Date().toLocaleString('ar-SA'),
+                    doctorNote: '',
+                    prescriptionNumber: '',
+                    status: 'pending'
+                };
+                state.cases.push(newCase);
+                state.currentCaseId = newCase.id;
+                updateState({ step: 'result' });
             }
-
-            return { urgent, classification, message, type: urgent ? 'urgent' : 'normal' };
         }
 
-        function handleSubmit() {
+        function setMainProblem(problem) {
+            state.formData.mainProblem = problem;
+            render();
+        }
+
+        function nextFromMainProblem() {
+            if (!state.formData.mainProblem) {
+                alert('الرجاء اختيار المشكلة');
+                return;
+            }
+            
+            if (state.formData.mainProblem === 'other') {
+                const desc = document.getElementById('otherDesc');
+                if (desc) {
+                    state.formData.otherProblemDescription = desc.value;
+                }
+                if (!state.formData.otherProblemDescription) {
+                    alert('الرجاء وصف المشكلة');
+                    return;
+                }
+            }
+            
+            if (state.formData.mainProblem === 'pain') {
+                updateState({ step: 'painLocation' });
+            } else if (state.formData.mainProblem === 'swelling') {
+                updateState({ step: 'swellingDetails' });
+            } else if (state.formData.mainProblem === 'fracture') {
+                updateState({ step: 'fractureDetails' });
+            } else if (state.formData.mainProblem === 'filling') {
+                updateState({ step: 'fillingDetails' });
+            } else {
+                updateState({ step: 'healthConditions' });
+            }
+        }
+
+        function setPainLocation(loc) {
+            updateFormData('painLocation', loc);
+        }
+
+        function nextFromPainLocation() {
+            if (!state.formData.painLocation) {
+                alert('الرجاء تحديد موقع الألم');
+                return;
+            }
+            if (state.formData.painLocation === 'specific') {
+                const desc = document.getElementById('painLocationDesc');
+                if (desc) {
+                    state.formData.painLocationDescription = desc.value;
+                }
+                if (!state.formData.painLocationDescription) {
+                    alert('الرجاء وصف مكان السن');
+                    return;
+                }
+            }
+            updateState({ step: 'painDetails' });
+        }
+
+        function setPainSeverity(val) {
+            updateFormData('painSeverity', val);
+        }
+
+        function setPainkillerEffective(val) {
+            updateFormData('painkillerEffective', val);
+        }
+
+        function setWakesFromSleep(val) {
+            updateFormData('wakesFromSleep', val);
+        }
+
+        function setSwellingType(val) {
+            updateFormData('swellingType', val);
+        }
+
+        function setHasFever(val) {
+            updateFormData('hasFever', val);
+        }
+
+        function setAffectsSwallowing(val) {
+            updateFormData('affectsSwallowing', val);
+        }
+
+        function setHardAndPainful(val) {
+            updateFormData('hardAndPainful', val);
+        }
+
+        function setHasRedSpot(val) {
+            updateFormData('hasRedSpot', val);
+        }
+
+        function setHasSensitivity(val) {
+            updateFormData('hasSensitivity', val);
+        }
+
+        function setHasContinuousPain(val) {
+            updateFormData('hasContinuousPain', val);
+        }
+
+        function setWithPain(val) {
+            state.formData.withPain = val;
+            if (val === true) {
+                updateState({ step: 'fillingPainDetails' });
+            } else {
+                // حالة بدون ألم - إرسال مباشرة
+                state.result = {
+                    type: 'normal',
+                    classification: 'حالة عادية: للمراجعة',
+                    message: 'سيتم مراجعة حالتك والرد عليك بأسرع وقت'
+                };
+                const newCase = {
+                    id: Date.now(),
+                    ...state.formData,
+                    submittedAt: new Date().toLocaleString('ar-SA'),
+                    doctorNote: '',
+                    prescriptionNumber: '',
+                    status: 'pending'
+                };
+                state.cases.push(newCase);
+                state.currentCaseId = newCase.id;
+                updateState({ step: 'result' });
+            }
+        }
+
+        function toggleHealth(value) {
+            if (value === 'none') {
+                state.formData.healthConditions = ['none'];
+            } else {
+                if (state.formData.healthConditions.includes('none')) {
+                    state.formData.healthConditions = [value];
+                } else if (state.formData.healthConditions.includes(value)) {
+                    state.formData.healthConditions = state.formData.healthConditions.filter(h => h !== value);
+                } else {
+                    state.formData.healthConditions.push(value);
+                }
+            }
+            render();
+        }
+
+        function goToHealth() {
+            updateState({ step: 'healthConditions' });
+        }
+
+        function goBack(target) {
+            updateState({ step: target });
+        }
+
+        function goBackFromHealth() {
+            if (state.formData.mainProblem === 'pain') {
+                updateState({ step: 'painDetails' });
+            } else if (state.formData.mainProblem === 'swelling') {
+                updateState({ step: 'swellingDetails' });
+            } else if (state.formData.mainProblem === 'fracture') {
+                updateState({ step: 'fractureDetails' });
+            } else if (state.formData.mainProblem === 'filling') {
+                if (state.formData.withPain) {
+                    updateState({ step: 'fillingPainDetails' });
+                } else {
+                    updateState({ step: 'fillingDetails' });
+                }
+            } else {
+                updateState({ step: 'mainProblem' });
+            }
+        }
+
+        function submitForm() {
+            if (state.formData.healthConditions.length === 0) {
+                alert('الرجاء اختيار أحد الخيارات');
+                return;
+            }
+            
+            // تصنيف الحالة
             const result = classifyCase();
+            state.result = result;
+            
             const newCase = {
                 id: Date.now(),
                 ...state.formData,
@@ -155,11 +943,70 @@
                 status: 'pending'
             };
             state.cases.push(newCase);
-            updateState({ 
-                result, 
-                currentCaseId: newCase.id,
-                step: 'result' 
-            });
+            state.currentCaseId = newCase.id;
+            updateState({ step: 'result' });
+        }
+
+        function newCase() {
+            state.formData = {
+                nationalId: '',
+                fullName: '',
+                age: '',
+                phone: '',
+                gender: '',
+                isPregnant: null,
+                emergencySymptoms: [],
+                mainProblem: '',
+                otherProblemDescription: '',
+                painLocation: '',
+                painLocationDescription: '',
+                painSeverity: '',
+                painkillerEffective: null,
+                wakesFromSleep: null,
+                swellingType: '',
+                hasFever: null,
+                affectsSwallowing: null,
+                hardAndPainful: null,
+                withPain: null,
+                hasRedSpot: null,
+                hasSensitivity: null,
+                hasContinuousPain: null,
+                healthConditions: []
+            };
+            state.result = null;
+            state.currentCaseId = null;
+            updateState({ step: 'personal' });
+        }
+
+        function handleLogin(e) {
+            e.preventDefault();
+            const username = document.getElementById('loginUsername').value;
+            const password = document.getElementById('loginPassword').value;
+            
+            if (username === DOCTOR_CREDENTIALS.username && password === DOCTOR_CREDENTIALS.password) {
+                updateState({ isLoggedIn: true, loginError: '' });
+            } else {
+                updateState({ loginError: 'اسم المستخدم أو كلمة المرور غير صحيحة' });
+            }
+        }
+
+        function handleLogout() {
+            updateState({ isLoggedIn: false, view: 'patient' });
+        }
+
+        function viewCase(id) {
+            const caseItem = state.cases.find(c => c.id === id);
+            if (caseItem) {
+                updateState({ 
+                    selectedCase: caseItem,
+                    doctorNote: caseItem.doctorNote || '',
+                    prescriptionNumber: caseItem.prescriptionNumber || ''
+                });
+            }
+        }
+
+        function closeCase() {
+            updateState({ selectedCase: null, doctorNote: '', prescriptionNumber: '' });
         }
 
         function sendDoctorResponse() {
@@ -185,199 +1032,11 @@
             });
         }
 
-        function handleLogin(e) {
-            e.preventDefault();
-            const username = document.getElementById('loginUsername').value;
-            const password = document.getElementById('loginPassword').value;
-            
-            if (username === DOCTOR_CREDENTIALS.username && password === DOCTOR_CREDENTIALS.password) {
-                updateState({ isLoggedIn: true, loginError: '' });
-            } else {
-                updateState({ loginError: 'اسم المستخدم أو كلمة المرور غير صحيحة' });
-            }
-        }
-
-        function handleLogout() {
-            updateState({ isLoggedIn: false, view: 'patient' });
-        }
-
-        // Render Functions
-        function renderHeader() {
-            return `
-                <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
-                    <div class="bg-blue-600 p-6 text-white">
-                        <h1 class="text-3xl font-bold text-center">نظام تصنيف حالات طوارئ الأسنان</h1>
-                        <p class="text-center text-blue-100 mt-2">تقييم سريع وفعال للحالات الطارئة</p>
-                    </div>
-                    <div class="flex border-b-2 border-gray-200">
-                        <button onclick="switchView('patient')" class="flex-1 py-4 font-bold transition-all ${
-                            state.view === 'patient' 
-                                ? 'bg-blue-50 text-blue-700 border-b-4 border-blue-600' 
-                                : 'text-gray-600 hover:bg-gray-50'
-                        }">
-                            واجهة المريض
-                        </button>
-                        <button onclick="switchView('doctor')" class="flex-1 py-4 font-bold transition-all ${
-                            state.view === 'doctor' 
-                                ? 'bg-green-50 text-green-700 border-b-4 border-green-600' 
-                                : 'text-gray-600 hover:bg-gray-50'
-                        }">
-                            واجهة الطبيب
-                        </button>
-                    </div>
-                    <div class="p-8">
-            `;
-        }
-
-        function renderFooter() {
-            return `
-                    </div>
-                </div>
-                <div class="text-center text-sm text-gray-600 mt-6 bg-white rounded-lg p-4">
-                    <p class="font-bold">© 2024 نظام تصنيف حالات طوارئ الأسنان</p>
-                    <p class="mt-1">للطوارئ الشديدة اتصل فوراً بالرقم 997</p>
-                </div>
-            `;
-        }
-
-        function renderPersonalInfo() {
-            return renderHeader() + `
-                <h2 class="text-2xl font-bold text-gray-900 mb-6">المعلومات الشخصية</h2>
-                
-                <div class="space-y-5">
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">رقم الهوية</label>
-                        <input type="text" id="nationalId" value="${state.formData.nationalId}" 
-                            onchange="updateFormData('nationalId', this.value)"
-                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            placeholder="أدخل رقم الهوية">
-                    </div>
-                    
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">الاسم الثلاثي</label>
-                        <input type="text" id="fullName" value="${state.formData.fullName}"
-                            onchange="updateFormData('fullName', this.value)"
-                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            placeholder="أدخل الاسم الكامل">
-                    </div>
-                    
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">العمر</label>
-                        <input type="number" id="age" value="${state.formData.age}"
-                            onchange="updateFormData('age', this.value)"
-                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            placeholder="أدخل العمر">
-                    </div>
-                    
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">رقم الجوال</label>
-                        <input type="tel" id="phone" value="${state.formData.phone}"
-                            onchange="updateFormData('phone', this.value)"
-                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            placeholder="05xxxxxxxx">
-                    </div>
-                    
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-3">الجنس</label>
-                        <div class="grid grid-cols-2 gap-4">
-                            <button onclick="setGender('male')" class="py-3 rounded-lg border-2 font-semibold transition-all ${
-                                state.formData.gender === 'male' 
-                                    ? 'bg-blue-600 text-white border-blue-600' 
-                                    : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400'
-                            }">
-                                ذكر
-                            </button>
-                            <button onclick="setGender('female')" class="py-3 rounded-lg border-2 font-semibold transition-all ${
-                                state.formData.gender === 'female' 
-                                    ? 'bg-pink-600 text-white border-pink-600' 
-                                    : 'bg-white text-gray-700 border-gray-300 hover:border-pink-400'
-                            }">
-                                أنثى
-                            </button>
-                        </div>
-                    </div>
-                    
-                    ${state.formData.gender === 'female' ? `
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-3">هل أنتِ حامل؟</label>
-                        <div class="grid grid-cols-2 gap-4">
-                            <button onclick="setPregnant(true)" class="py-3 rounded-lg border-2 font-semibold transition-all ${
-                                state.formData.isPregnant === true 
-                                    ? 'bg-green-600 text-white border-green-600' 
-                                    : 'bg-white text-gray-700 border-gray-300 hover:border-green-400'
-                            }">
-                                نعم
-                            </button>
-                            <button onclick="setPregnant(false)" class="py-3 rounded-lg border-2 font-semibold transition-all ${
-                                state.formData.isPregnant === false 
-                                    ? 'bg-gray-600 text-white border-gray-600' 
-                                    : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
-                            }">
-                                لا
-                            </button>
-                        </div>
-                    </div>
-                    ` : ''}
-                    
-                    <button onclick="nextToEmergency()" 
-                        class="w-full mt-6 bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition-all font-semibold">
-                        التالي →
-                    </button>
-                </div>
-            ` + renderFooter();
-        }
-
-        function renderEmergencySymptoms() {
-            return renderHeader() + `
-                <h2 class="text-2xl font-bold text-gray-900 mb-4">الأعراض الطارئة</h2>
-                
-                <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg mb-6">
-                    <p class="text-red-800 font-semibold">هل تعاني من أياً من هذه الأعراض الآن؟</p>
-                </div>
-
-                <div class="space-y-3">
-                    <button onclick="toggleEmergencySymptom('breathing')" class="w-full p-4 rounded-lg border-2 text-right transition-all font-semibold ${
-                        state.formData.emergencySymptoms.includes('breathing') 
-                            ? 'bg-red-600 text-white border-red-600' 
-                            : 'bg-white text-gray-700 border-gray-300 hover:border-red-400'
-                    }">
-                        صعوبة شديدة ومفاجئة في التنفس والبلع
-                    </button>
-                    <button onclick="toggleEmergencySymptom('bleeding')" class="w-full p-4 rounded-lg border-2 text-right transition-all font-semibold ${
-                        state.formData.emergencySymptoms.includes('bleeding') 
-                            ? 'bg-red-600 text-white border-red-600' 
-                            : 'bg-white text-gray-700 border-gray-300 hover:border-red-400'
-                    }">
-                        نزيف لا يتوقف
-                    </button>
-                    <button onclick="toggleEmergencySymptom('swelling')" class="w-full p-4 rounded-lg border-2 text-right transition-all font-semibold ${
-                        state.formData.emergencySymptoms.includes('swelling') 
-                            ? 'bg-red-600 text-white border-red-600' 
-                            : 'bg-white text-gray-700 border-gray-300 hover:border-red-400'
-                    }">
-                        تورم كبير ينتشر بسرعة إلى الرقبة أو أسفل العين
-                    </button>
-                    <button onclick="toggleEmergencySymptom('none')" class="w-full p-4 rounded-lg border-2 text-right transition-all font-semibold ${
-                        state.formData.emergencySymptoms.includes('none') 
-                            ? 'bg-green-600 text-white border-green-600' 
-                            : 'bg-white text-gray-700 border-gray-300 hover:border-green-400'
-                    }">
-                        لا أخرى
-                    </button>
-                </div>
-
-                <div class="flex gap-3 mt-6">
-                    <button onclick="goBack('personal')" 
-                        class="flex-1 bg-gray-600 text-white py-3 rounded-lg hover:bg-gray-700 transition-all font-semibold">
-                        ← رجوع
-                    </button>
-                    <button onclick="nextFromEmergency()" 
-                        class="flex-1 bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition-all font-semibold">
-                        التالي →
-                    </button>
-                </div>
-            ` + renderFooter();
-        }
-
-        function renderMainProblem() {
-            return renderHeader() + `
+        // Initialize
+        window.onload = function() {
+            console.log('تم تحميل الموقع بنجاح!');
+            render();
+        };
+    </script>
+</body>
+</html>
